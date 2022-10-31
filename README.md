@@ -1,8 +1,29 @@
 # BaseSerializer
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/base_serializer`. To experiment with that code, run `bin/console` for an interactive prompt.
+base_serializer is a JSON object presenter (like active_model_serializers).
 
-TODO: Delete this and the text above, and describe your gem
+The implementation is one file (< 200 lines).
+
+## Usage
+
+```ruby
+class ProductSerializer
+  include ::BaseSerializer
+  field :id, :name, :price, :created_at
+end
+
+product =
+  Product.new(
+    id: 1,
+    name: "foo",
+    price: 12.3,
+    created_at: Time.now
+  )
+
+ProductSerializer.serialize(product)
+#=> {:id=>1, :name=>"foo", :price=>12.3, :created_at=>"2022-10-31T22:08:10.573+09:00"}
+
+```
 
 ## Installation
 
@@ -19,10 +40,6 @@ And then execute:
 Or install it yourself as:
 
     $ gem install base_serializer
-
-## Usage
-
-TODO: Write usage instructions here
 
 ## Development
 
