@@ -27,25 +27,9 @@ module BaseSerializer
       fields.keys
     end
 
-    def fields_for(key)
-      field_sets[:"_#{key}"]
-    end
-
     def relation(name, serializer:, fields: nil, default: false)
       @relations ||= {}
-      @relations[name] = Relation.new(name: name, serializer_class: serializer, default_fields: fields, default_included: default)
-    end
-
-    def field_set(name, field_names = [])
-      @field_sets ||= {}
-
-      if block_given?
-        before_field_names = fields.keys + relations.keys
-        yield
-        field_names = (fields.keys + relations.keys) - before_field_names
-      end
-
-      field_sets[name] = expand_field_set(field_names)
+      @relations[name] = Relation.new(name: name, serializer_class: serializer, default_fields: fields)
     end
 
     def serialize(object, **args)
@@ -58,10 +42,6 @@ module BaseSerializer
 
     def fields
       @fields ||= {}
-    end
-
-    def field_sets
-      @field_sets ||= {}
     end
 
     def expand_field_set(field_names)
@@ -102,6 +82,17 @@ module BaseSerializer
     end
   end
 
+  def cast_value(value)
+    case value
+    when Time
+      value.iso8601(3)
+    when BigDecimal
+      value.to_f
+    else
+      value
+    end
+  end
+
   private
 
   def serialize_one(object)
@@ -128,7 +119,7 @@ module BaseSerializer
         fields: selected_fields_for_relation(relation.name) || relation.default_fields
       }
 
-      hash[relation.name] = relation_object && relation.serializer_class.new(args).serialize(relation_object)
+      hash[relation.name] = relation_object && relation.serializer_class.new(**args).serialize(relation_object)
     end
 
     @object = nil
@@ -146,16 +137,5 @@ module BaseSerializer
 
   def selected_relations
     self.class.relations.slice(*@selected_fields)
-  end
-
-  def cast_value(value)
-    case value
-    when Time
-      value.iso8601(3)
-    when BigDecimal
-      value.to_f
-    else
-      value
-    end
   end
 end
