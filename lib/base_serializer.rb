@@ -5,8 +5,15 @@ require 'time'
 require 'bigdecimal'
 
 module BaseSerializer
-  Field = Struct.new(:name, keyword_init: true)
-  Relation = Struct.new(:name, :serializer_class, :default_fields, keyword_init: true)
+  class Field
+    attr_reader :name, :serializer, :default_fields, :default
+    def initialize(name:, serializer: nil, default_fields: nil, default: true)
+      @name = name
+      @serializer = serializer
+      @default_fields = default_fields
+      @default = default
+    end
+  end
 
   def self.included(base)
     base.extend ClassMethods
@@ -16,28 +23,23 @@ module BaseSerializer
   end
 
   module ClassMethods
-    def field(*field_names)
+    def field(*field_names, serializer: nil, fields: nil, default: true)
       @fields ||= {}
       field_names.each do |name|
-        @fields[name] = Field.new(name: name)
+        @fields[name] = Field.new(name: name, serializer: serializer, default_fields: fields, default: default)
       end
     end
 
-    def all_fields
-      fields.keys
+    def relation(name, serializer:, fields: nil, default: false)
+      field(name, serializer: serializer, fields: fields, default: default)
     end
 
-    def relation(name, serializer:, fields: nil, default: false)
-      @relations ||= {}
-      @relations[name] = Relation.new(name: name, serializer_class: serializer, default_fields: fields)
+    def all_fields
+      fields.values.select(&:default).map(&:name)
     end
 
     def serialize(object, **args)
       new(**args).serialize(object)
-    end
-
-    def relations
-      @relations ||= {}
     end
 
     def fields
@@ -66,7 +68,7 @@ module BaseSerializer
   def initialize(context: {}, fields: nil)
     @context = context
 
-    fields ||= self.class.fields.keys
+    fields ||= [:*]
     @selected_relation_fields = fields[-1].is_a?(Hash) ? fields[-1] : {}
     @selected_fields = self.class.expand_field_set(fields + @selected_relation_fields.keys)
   end
@@ -99,27 +101,32 @@ module BaseSerializer
     @object = object
 
     hash = {}
-    selected_fields.each do |field_name, _|
-      value =
-        if respond_to?(field_name)
-          send(field_name)
-        elsif object.respond_to?(field_name)
-          object.public_send(field_name)
-        elsif object.respond_to?(:"#{field_name}?")
-          object.public_send(:"#{field_name}?")
-        end
+    selected_fields.each do |field_name, field|
+      if field.serializer
+        value = object.public_send(field.name)
 
-      hash[field_name] = cast_value(value)
-    end
+        hash[field_name] =
+          if value
+            field.serializer.serialize(
+              value,
+              context: context,
+              fields: selected_fields_for_relation(field.name) || field.default_fields
+            )
+          else
+            nil
+          end
+      else
+        value =
+          if respond_to?(field_name)
+            send(field_name)
+          elsif object.respond_to?(field_name)
+            object.public_send(field_name)
+          elsif object.respond_to?(:"#{field_name}?")
+            object.public_send(:"#{field_name}?")
+          end
 
-    selected_relations.each do |_, relation|
-      relation_object = object.public_send(relation.name)
-      args = {
-        context: context,
-        fields: selected_fields_for_relation(relation.name) || relation.default_fields
-      }
-
-      hash[relation.name] = relation_object && relation.serializer_class.new(**args).serialize(relation_object)
+        hash[field_name] = cast_value(value)
+      end
     end
 
     @object = nil
@@ -133,9 +140,5 @@ module BaseSerializer
 
   def selected_fields_for_relation(relation_name)
     @selected_relation_fields[relation_name]
-  end
-
-  def selected_relations
-    self.class.relations.slice(*@selected_fields)
   end
 end
