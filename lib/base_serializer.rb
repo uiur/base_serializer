@@ -8,6 +8,13 @@ module BaseSerializer
   class Error < StandardError; end
   class RuntimeError < Error; end
 
+  def self.included(base)
+    base.extend ClassMethods
+    base.class_eval do
+      attr_reader :object, :context
+    end
+  end
+
   class Field
     attr_reader :name, :serializer, :default_fields, :default
     def initialize(name:, serializer: nil, default_fields: nil, default: true)
@@ -18,14 +25,15 @@ module BaseSerializer
     end
   end
 
-  def self.included(base)
-    base.extend ClassMethods
-    base.class_eval do
-      attr_reader :object, :context
-    end
-  end
-
   module ClassMethods
+    # Define a field
+    # @param name [Symbol] field name
+    # @param serializer [#serialize] Serializer class to serialize the field value. serialier must have #serialize method.
+    # @param fields [Array<String>] fields to serialize nested object
+    # @param default [Boolean] whether the field is serialized by default
+    # @example
+    #   field :name
+    #   field :users, serializer: UserSerializer
     def field(*field_names, serializer: nil, fields: nil, default: true)
       @fields ||= {}
       field_names.each do |name|
@@ -33,10 +41,15 @@ module BaseSerializer
       end
     end
 
+    # Serialize an object to hash.
+    # @param object [Object | Array<Object>] object to serialize. If object is an array, it returns an array of serialized objects.
+    # @return [Hash | Array<Hash>]
     def serialize(object, **args)
       new(**args).serialize(object)
     end
 
+    # Return fields defined by #field
+    # @return [Hash<Symbol, Field>]
     def fields
       @fields ||= {}
     end
