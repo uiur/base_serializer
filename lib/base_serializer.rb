@@ -69,6 +69,19 @@ module BaseSerializer
     end
   end
 
+  def map_field_names(field_names)
+    field_names.reduce([]) do |expanded, name|
+      fields_for_name =
+        if name.to_s == '*'
+          self.class.fields.values.select(&:default).map(&:name)
+        else
+          [name]
+        end
+
+      expanded + fields_for_name
+    end
+  end
+
   private
 
   def serialize_one(object)
@@ -122,24 +135,11 @@ module BaseSerializer
     end
 
     def field_names
-      expand_field_set(fields + child_fields.keys)
+      serializer.map_field_names(fields + child_fields.keys)
     end
 
     def child_fields
       fields[-1].is_a?(Hash) ? fields[-1] : {}
-    end
-
-    def expand_field_set(field_names)
-      field_names.reduce([]) do |expanded, name|
-        fields_for_name =
-          if name.to_s == '*'
-            serializer.class.fields.values.select(&:default).map(&:name)
-          else
-            [name]
-          end
-
-        expanded + fields_for_name
-      end
     end
   end
 
