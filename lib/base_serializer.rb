@@ -6,6 +6,8 @@ require 'bigdecimal'
 
 module BaseSerializer
   class Error < StandardError; end
+  class RuntimeError < Error; end
+
   class Field
     attr_reader :name, :serializer, :default_fields, :default
     def initialize(name:, serializer: nil, default_fields: nil, default: true)
@@ -102,6 +104,8 @@ module BaseSerializer
         object.public_send(field.name)
       elsif object.respond_to?(:"#{field.name}?")
         object.public_send(:"#{field.name}?")
+      else
+        raise RuntimeError, "Field `#{field.name}` is not defined on #{object.inspect}"
       end
     end
   end

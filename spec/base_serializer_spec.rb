@@ -59,6 +59,19 @@ RSpec.describe BaseSerializer do
           ])
         end
       end
+
+      context 'object does not have a specified attribute' do
+        class self::BadProductSerializer
+          include ::BaseSerializer
+          field :id, :name, :undefined_field
+        end
+
+        it 'returns hash' do
+          expect {
+            self.class::BadProductSerializer.serialize(product)
+          }.to raise_error(::BaseSerializer::RuntimeError)
+        end
+      end
     end
 
     describe 'nested structure' do
