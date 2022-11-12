@@ -71,7 +71,7 @@ RSpec.describe BaseSerializer do
         end
 
         field :id
-        relation :product_images, serializer: ProductImageSerializer
+        field :product_images, serializer: ProductImageSerializer, default: false
       end
 
       let(:product) do

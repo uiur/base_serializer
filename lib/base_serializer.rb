@@ -5,6 +5,7 @@ require 'time'
 require 'bigdecimal'
 
 module BaseSerializer
+  class Error < StandardError; end
   class Field
     attr_reader :name, :serializer, :default_fields, :default
     def initialize(name:, serializer: nil, default_fields: nil, default: true)
@@ -30,14 +31,6 @@ module BaseSerializer
       end
     end
 
-    def relation(name, serializer:, fields: nil, default: false)
-      field(name, serializer: serializer, fields: fields, default: default)
-    end
-
-    def all_fields
-      fields.values.select(&:default).map(&:name)
-    end
-
     def serialize(object, **args)
       new(**args).serialize(object)
     end
@@ -45,32 +38,11 @@ module BaseSerializer
     def fields
       @fields ||= {}
     end
-
-    def expand_field_set(field_names)
-      field_names.reduce([]) do |expanded, name|
-        fields_for_name =
-          if name.to_s.start_with?('_')
-            field_set_name = name[1..-1].to_sym
-            field_sets[field_set_name]
-          elsif name.to_s == '*'
-            all_fields
-          else
-            [name]
-          end
-
-        raise "json serialize error: field set `#{name}` was not found" unless fields_for_name
-
-        expanded + fields_for_name
-      end
-    end
   end
 
   def initialize(context: {}, fields: nil)
     @context = context
-
-    fields ||= [:*]
-    @selected_relation_fields = fields[-1].is_a?(Hash) ? fields[-1] : {}
-    @selected_fields = self.class.expand_field_set(fields + @selected_relation_fields.keys)
+    @fields = fields
   end
 
   def serialize(object)
@@ -102,31 +74,8 @@ module BaseSerializer
 
     hash = {}
     selected_fields.each do |field_name, field|
-      if field.serializer
-        value = object.public_send(field.name)
-
-        hash[field_name] =
-          if value
-            field.serializer.serialize(
-              value,
-              context: context,
-              fields: selected_fields_for_relation(field.name) || field.default_fields
-            )
-          else
-            nil
-          end
-      else
-        value =
-          if respond_to?(field_name)
-            send(field_name)
-          elsif object.respond_to?(field_name)
-            object.public_send(field_name)
-          elsif object.respond_to?(:"#{field_name}?")
-            object.public_send(:"#{field_name}?")
-          end
-
-        hash[field_name] = cast_value(value)
-      end
+      value = field_value(field)
+      hash[field_name] = cast_value(value)
     end
 
     @object = nil
@@ -134,11 +83,63 @@ module BaseSerializer
     hash
   end
 
-  def selected_fields
-    self.class.fields.slice(*@selected_fields)
+  def field_value(field)
+    if field.serializer
+      value = object.public_send(field.name)
+      if value
+        field.serializer.serialize(
+          value,
+          context: context,
+          fields: field_selector.child_fields[field.name] || field.default_fields
+        )
+      else
+        nil
+      end
+    else
+      if respond_to?(field.name)
+        send(field.name)
+      elsif object.respond_to?(field.name)
+        object.public_send(field.name)
+      elsif object.respond_to?(:"#{field.name}?")
+        object.public_send(:"#{field.name}?")
+      end
+    end
   end
 
-  def selected_fields_for_relation(relation_name)
-    @selected_relation_fields[relation_name]
+  def selected_fields
+    self.class.fields.slice(*field_selector.field_names)
+  end
+
+  class FieldSelector
+    attr_reader :fields, :serializer
+    def initialize(fields:, serializer:)
+      @fields = fields
+      @serializer = serializer
+    end
+
+    def field_names
+      expand_field_set(fields + child_fields.keys)
+    end
+
+    def child_fields
+      fields[-1].is_a?(Hash) ? fields[-1] : {}
+    end
+
+    def expand_field_set(field_names)
+      field_names.reduce([]) do |expanded, name|
+        fields_for_name =
+          if name.to_s == '*'
+            serializer.class.fields.values.select(&:default).map(&:name)
+          else
+            [name]
+          end
+
+        expanded + fields_for_name
+      end
+    end
+  end
+
+  def field_selector
+    @field_selector ||= FieldSelector.new(fields: @fields || [:*], serializer: self)
   end
 end
