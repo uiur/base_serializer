@@ -104,6 +104,19 @@ RSpec.describe BaseSerializer do
           })
         end
       end
+
+      context 'fields of relation are selected' do
+        it 'returns only selected fields of relation' do
+          expect(self.class::ProductSerializer.serialize(product, fields: [:*, product_images: [:id]])).to match({
+            id: 1,
+            product_images: [
+              {
+                id: 2,
+              }
+            ]
+          })
+        end
+      end
     end
   end
 end
