@@ -1,6 +1,6 @@
 # BaseSerializer
 
-base_serializer is a JSON object presenter (like active_model_serializers).
+**base_serializer** is a JSON object presenter like active_model_serializers.
 
 The implementation is one file (< 200 lines). It's easy to customize.
 
@@ -42,6 +42,15 @@ pp ProductSerializer.serialize([product], fields: [:id, :name])
 #=> [{:id=>1, :name=>"foo"}]
 ```
 
+So in your Rails controller, you can write like this:
+
+```ruby
+def index
+  products = Product.all
+  render json: ProductSerializer.serialize(products)
+end
+```
+
 ### Association
 It can render nested objects with has_many or belongs_to associations.
 
@@ -59,7 +68,7 @@ class PostSerializer
   field :comments, serializer: CommentSerializer
 end
 
-post  =
+post =
   OpenStruct.new(
     id: 1,
     title: "foo",
@@ -98,7 +107,7 @@ class PostSerializer
   field :comments, serializer: CommentSerializer, default: false
 end
 
-post  =
+post =
   OpenStruct.new(
     id: 1,
     title: "foo",
@@ -146,6 +155,21 @@ product =
 
 pp ProductSerializer.serialize(product)
 #=> {:id=>"product-1", :name=>"foo"}
+```
+
+Also, it calls methods like `is_new?` of a source object when serializing.
+
+```ruby
+class ProductSerializer
+  include ::BaseSerializer
+  field :id      # This calls ProductSerializer#id because it's defined.
+  field :name
+  field :is_new  # This calls Product#is_new? or Product#is_new if the method name is defined.
+
+  def id
+    "product-#{object.id}"
+  end
+end
 ```
 
 ## Installation
