@@ -15,5 +15,5 @@ gem 'awesome_print'
 gem 'pry-byebug'
 gem 'kalibera'
 
-gem 'base_serializer', github: 'uiur/base_serializer', branch: :main
+gem 'base_serializer', path: '..'
 gem 'active_model_serializers'
