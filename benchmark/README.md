@@ -1,29 +1,32 @@
-
 # benchmark
+Latest measurement on Ruby 3.3.4 (`arm64-darwin24`) with the bundled workload in `benchmark.rb`:
+
 ```sh
 ❯ bundle exec ruby benchmark.rb
 Warming up --------------------------------------
-                 ams    32.000  i/100ms
-     base_serializer   290.000  i/100ms
+                 ams    61.000 i/100ms
+     base_serializer   854.000 i/100ms
 Calculating -------------------------------------
-                 ams    332.382  (± 0.5%) i/s -      3.328k in  10.020864s
-     base_serializer      2.983k (± 0.6%) i/s -     29.870k in  10.026233s
+                 ams    613.455 (± 1.3%) i/s    (1.63 ms/i) -      6.100k in  10.017535s
+     base_serializer      8.361k (± 1.0%) i/s  (119.60 μs/i) -     83.692k in  10.041011s
                    with 95.0% confidence
 
 Comparison:
-     base_serializer:     2982.6 i/s
-                 ams:      332.4 i/s - 8.97x  (± 0.07) slower
+     base_serializer:     8361.4 i/s
+                 ams:      613.5 i/s - 13.63x (± 0.22) slower
                    with 95.0% confidence
 
 Calculating -------------------------------------
-                 ams   238.360k memsize (     0.000  retained)
-                         3.212k objects (     0.000  retained)
-                        12.000  strings (     0.000  retained)
-     base_serializer    92.160k memsize (     0.000  retained)
-                         1.398k objects (     0.000  retained)
-                         6.000  strings (     0.000  retained)
+                 ams   256.848k memsize (     0.000 retained)
+                         2.970k objects (     0.000 retained)
+                         7.000 strings  (     0.000 retained)
+     base_serializer    27.800k memsize (     0.000 retained)
+                       240.000 objects  (     0.000 retained)
+                         4.000 strings  (     0.000 retained)
 
 Comparison:
-     base_serializer:      92160 allocated
-                 ams:     238360 allocated - 2.59x more
+     base_serializer:      27800 allocated
+                 ams:     256848 allocated - 9.24x more
 ```
+
+Experiment notes live in `EXPERIMENTS.md`.
